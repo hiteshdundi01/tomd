@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDFMD — PDF to Markdown Converter</title>
+    <meta name="description" content="Convert PDF documents to clean Markdown with AI-powered OCR, image descriptions, and smart formatting.">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Marked.js for markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Highlight.js for syntax highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+</head>
+<body>
+    <!-- Animated background -->
+    <div class="bg-gradient"></div>
+    <div class="bg-noise"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <rect x="2" y="2" width="28" height="28" rx="6" stroke="url(#grad1)" stroke-width="2.5"/>
+                        <path d="M9 10h14M9 16h10M9 22h12" stroke="url(#grad1)" stroke-width="2" stroke-linecap="round"/>
+                        <defs>
+                            <linearGradient id="grad1" x1="0" y1="0" x2="32" y2="32">
+                                <stop offset="0%" stop-color="#818cf8"/>
+                                <stop offset="100%" stop-color="#c084fc"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <h1>PDFMD</h1>
+            </div>
+            <p class="tagline">AI-Powered PDF → Markdown Converter</p>
+        </header>
+
+        <!-- Upload Section -->
+        <section id="upload-section" class="card upload-card">
+            <div id="drop-zone" class="drop-zone">
+                <div class="drop-zone-content">
+                    <div class="upload-icon">
+                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                            <path d="M24 32V16m0 0l-8 8m8-8l8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M8 32v4a4 4 0 004 4h24a4 4 0 004-4v-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                        </svg>
+                    </div>
+                    <h2>Drop your PDF here</h2>
+                    <p>or <span class="browse-link" id="browse-trigger">browse files</span></p>
+                    <p class="file-hint">Supports digital and scanned PDFs up to 100 MB</p>
+                </div>
+                <input type="file" id="file-input" accept=".pdf" hidden>
+            </div>
+
+            <!-- Selected file info -->
+            <div id="file-info" class="file-info hidden">
+                <div class="file-info-icon">📄</div>
+                <div class="file-info-details">
+                    <span id="file-name" class="file-name"></span>
+                    <span id="file-size" class="file-size"></span>
+                </div>
+                <button id="remove-file" class="btn-icon" title="Remove file">✕</button>
+            </div>
+
+            <!-- Options -->
+            <div class="options">
+                <label class="toggle-label">
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="smart-mode" checked>
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <div class="toggle-text">
+                        <span class="toggle-title">Smart Mode</span>
+                        <span class="toggle-desc">Use AI to clean up and restructure the output</span>
+                    </div>
+                    <div class="smart-badge">✨ Gemini</div>
+                </label>
+            </div>
+
+            <!-- Convert button -->
+            <button id="convert-btn" class="btn-primary" disabled>
+                <span class="btn-text">Convert to Markdown</span>
+                <span class="btn-arrow">→</span>
+            </button>
+        </section>
+
+        <!-- Progress Section -->
+        <section id="progress-section" class="card progress-card hidden">
+            <div class="progress-header">
+                <h2>Converting...</h2>
+                <span id="progress-percent" class="progress-percent">0%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar" style="width: 0%"></div>
+            </div>
+            <p id="progress-step" class="progress-step">Initializing</p>
+            <div id="progress-pages" class="progress-pages hidden">
+                Page <span id="current-page">0</span> of <span id="total-pages">0</span>
+            </div>
+        </section>
+
+        <!-- Result Section -->
+        <section id="result-section" class="card result-card hidden">
+            <div class="result-header">
+                <div class="result-title">
+                    <div class="success-icon">✓</div>
+                    <h2>Conversion Complete</h2>
+                </div>
+                <button id="download-btn" class="btn-primary btn-download">
+                    <span>⬇ Download .md</span>
+                </button>
+            </div>
+
+            <!-- Stats -->
+            <div id="result-stats" class="result-stats">
+                <div class="stat">
+                    <span class="stat-value" id="stat-pages">0</span>
+                    <span class="stat-label">Pages</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="stat-tables">0</span>
+                    <span class="stat-label">Tables</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="stat-images">0</span>
+                    <span class="stat-label">Images</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value" id="stat-time">0s</span>
+                    <span class="stat-label">Time</span>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <button class="tab active" data-tab="preview">Preview</button>
+                <button class="tab" data-tab="raw">Raw Markdown</button>
+            </div>
+
+            <!-- Preview -->
+            <div id="tab-preview" class="tab-content active">
+                <div id="markdown-preview" class="markdown-preview"></div>
+            </div>
+            <div id="tab-raw" class="tab-content">
+                <pre><code id="raw-markdown" class="language-markdown"></code></pre>
+            </div>
+
+            <!-- New conversion -->
+            <button id="new-conversion" class="btn-secondary">
+                ← Convert Another PDF
+            </button>
+        </section>
+
+        <!-- Error Section -->
+        <section id="error-section" class="card error-card hidden">
+            <div class="error-icon">⚠</div>
+            <h2>Conversion Failed</h2>
+            <p id="error-message" class="error-message"></p>
+            <button id="retry-btn" class="btn-secondary">Try Again</button>
+        </section>
+    </div>
+
+    <footer class="footer">
+        <p>Built with PyMuPDF · pdfplumber · Tesseract OCR · Gemini AI</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

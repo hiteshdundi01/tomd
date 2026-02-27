@@ -1,0 +1,46 @@
+[project]
+name = "pdfmd"
+version = "0.1.0"
+description = "A robust PDF to Markdown converter with OCR and Gemini LLM integration"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+keywords = ["pdf", "markdown", "converter", "ocr", "gemini", "ai"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Text Processing :: Markup :: Markdown",
+    "Topic :: Utilities",
+]
+dependencies = [
+    "pymupdf>=1.25.0",
+    "pdfplumber>=0.11.0",
+    "pytesseract>=0.3.13",
+    "Pillow>=11.0.0",
+    "google-genai>=1.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.34.0",
+    "python-multipart>=0.0.18",
+    "python-dotenv>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/hiteshdundi01/pdfmd"
+Repository = "https://github.com/hiteshdundi01/pdfmd"
+Issues = "https://github.com/hiteshdundi01/pdfmd/issues"
+
+[project.scripts]
+pdfmd = "pdfmd.web.app:main"
+
+[build-system]
+requires = ["setuptools>=75.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
