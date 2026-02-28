@@ -40,3 +40,9 @@ htmlcov/
 uploads/
 output/
 *.log
+
+# Playwright
+playwright-report/
+
+# Scraper temp files
+tomd_scrape_*/

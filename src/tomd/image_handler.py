@@ -134,7 +134,7 @@ def describe_images_with_gemini(
     list[ExtractedImage]
         Same images with ``description`` field populated.
     """
-    from pdfmd.gemini_client import describe_image
+    from tomd.gemini_client import describe_image
 
     for img in images:
         try:

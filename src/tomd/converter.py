@@ -70,7 +70,7 @@ def convert_pdf_to_markdown(
         # ── Step 1: Detect PDF type ─────────────────────────────────────
         _update("Analyzing PDF structure", 5)
 
-        from pdfmd.text_extractor import is_digital_pdf, extract_text, pages_to_markdown
+        from tomd.text_extractor import is_digital_pdf, extract_text, pages_to_markdown
         use_ocr = not is_digital_pdf(pdf_path)
         result.used_ocr = use_ocr
 
@@ -90,7 +90,7 @@ def convert_pdf_to_markdown(
 
         # ── Step 3: Extract text ────────────────────────────────────────
         if use_ocr:
-            from pdfmd.ocr_extractor import extract_text_ocr_with_structure
+            from tomd.ocr_extractor import extract_text_ocr_with_structure
             raw_text = extract_text_ocr_with_structure(pdf_path)
             _update("OCR extraction complete", 40)
         else:
@@ -100,7 +100,7 @@ def convert_pdf_to_markdown(
 
         # ── Step 4: Extract tables ──────────────────────────────────────
         _update("Extracting tables", 45)
-        from pdfmd.table_extractor import extract_tables, table_to_markdown
+        from tomd.table_extractor import extract_tables, table_to_markdown
 
         tables = extract_tables(pdf_path)
         result.tables_found = len(tables)
@@ -120,7 +120,7 @@ def convert_pdf_to_markdown(
 
         # ── Step 5: Extract and describe images ─────────────────────────
         _update("Extracting images", 60)
-        from pdfmd.image_handler import (
+        from tomd.image_handler import (
             extract_images,
             describe_images_with_gemini,
             images_to_markdown,
@@ -150,7 +150,7 @@ def convert_pdf_to_markdown(
 
         # ── Step 6: Detect math and code ────────────────────────────────
         _update("Detecting math and code blocks", 80)
-        from pdfmd.math_code_detector import detect_math, detect_code_blocks
+        from tomd.math_code_detector import detect_math, detect_code_blocks
 
         raw_text = detect_math(raw_text)
         raw_text = detect_code_blocks(raw_text)
@@ -161,7 +161,7 @@ def convert_pdf_to_markdown(
         if smart_mode:
             _update("Running AI-powered cleanup (Smart Mode)", 88)
             try:
-                from pdfmd.gemini_client import cleanup_markdown
+                from tomd.gemini_client import cleanup_markdown
                 raw_text = cleanup_markdown(raw_text)
                 _update("Smart Mode cleanup complete", 95)
             except Exception as exc:

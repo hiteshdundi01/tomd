@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDFMD — PDF to Markdown Converter</title>
-    <meta name="description" content="Convert PDF documents to clean Markdown with AI-powered OCR, image descriptions, and smart formatting.">
+    <title>TOMD — Convert Anything to Markdown</title>
+    <meta name="description" content="Convert PDFs and web articles to clean Markdown with AI-powered OCR, image descriptions, and smart formatting.">
     <link rel="stylesheet" href="/static/style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,39 +36,69 @@
                         </defs>
                     </svg>
                 </div>
-                <h1>PDFMD</h1>
+                <h1>TOMD</h1>
             </div>
-            <p class="tagline">AI-Powered PDF → Markdown Converter</p>
+            <p class="tagline">Convert Anything to Markdown</p>
         </header>
 
         <!-- Upload Section -->
         <section id="upload-section" class="card upload-card">
-            <div id="drop-zone" class="drop-zone">
-                <div class="drop-zone-content">
-                    <div class="upload-icon">
-                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                            <path d="M24 32V16m0 0l-8 8m8-8l8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            <path d="M8 32v4a4 4 0 004 4h24a4 4 0 004-4v-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            <!-- Mode Tabs -->
+            <div class="mode-tabs">
+                <button class="mode-tab active" data-mode="pdf" id="tab-pdf-mode">
+                    <span class="mode-tab-icon">📄</span>
+                    <span>PDF</span>
+                </button>
+                <button class="mode-tab" data-mode="scrape" id="tab-scrape-mode">
+                    <span class="mode-tab-icon">🌐</span>
+                    <span>Web Article</span>
+                </button>
+            </div>
+
+            <!-- PDF Mode -->
+            <div id="pdf-mode" class="mode-content active">
+                <div id="drop-zone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <div class="upload-icon">
+                            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                <path d="M24 32V16m0 0l-8 8m8-8l8 8" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                <path d="M8 32v4a4 4 0 004 4h24a4 4 0 004-4v-4" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <h2>Drop your PDF here</h2>
+                        <p>or <span class="browse-link" id="browse-trigger">browse files</span></p>
+                        <p class="file-hint">Supports digital and scanned PDFs up to 100 MB</p>
+                    </div>
+                    <input type="file" id="file-input" accept=".pdf" hidden>
+                </div>
+
+                <!-- Selected file info -->
+                <div id="file-info" class="file-info hidden">
+                    <div class="file-info-icon">📄</div>
+                    <div class="file-info-details">
+                        <span id="file-name" class="file-name"></span>
+                        <span id="file-size" class="file-size"></span>
+                    </div>
+                    <button id="remove-file" class="btn-icon" title="Remove file">✕</button>
+                </div>
+            </div>
+
+            <!-- Scrape Mode -->
+            <div id="scrape-mode" class="mode-content">
+                <div class="url-input-wrap">
+                    <div class="url-input-icon">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                            <path d="M8.5 14.5l-3-3a4.243 4.243 0 010-6l.5-.5a4.243 4.243 0 016 0l.5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                            <path d="M11.5 5.5l3 3a4.243 4.243 0 010 6l-.5.5a4.243 4.243 0 01-6 0l-.5-.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                         </svg>
                     </div>
-                    <h2>Drop your PDF here</h2>
-                    <p>or <span class="browse-link" id="browse-trigger">browse files</span></p>
-                    <p class="file-hint">Supports digital and scanned PDFs up to 100 MB</p>
+                    <input type="url" id="url-input" class="url-input" placeholder="Paste article URL (Substack, Medium, blog, etc.)">
+                    <button id="clear-url" class="btn-icon url-clear hidden" title="Clear URL">✕</button>
                 </div>
-                <input type="file" id="file-input" accept=".pdf" hidden>
+                <p class="file-hint" style="margin-top: 0.75rem">Works with Substack, Medium, WordPress, and most blog platforms</p>
             </div>
 
-            <!-- Selected file info -->
-            <div id="file-info" class="file-info hidden">
-                <div class="file-info-icon">📄</div>
-                <div class="file-info-details">
-                    <span id="file-name" class="file-name"></span>
-                    <span id="file-size" class="file-size"></span>
-                </div>
-                <button id="remove-file" class="btn-icon" title="Remove file">✕</button>
-            </div>
-
-            <!-- Options -->
+            <!-- Options (shared) -->
             <div class="options">
                 <label class="toggle-label">
                     <div class="toggle-switch">
@@ -119,14 +149,16 @@
 
             <!-- Stats -->
             <div id="result-stats" class="result-stats">
-                <div class="stat">
+                <!-- PDF stats -->
+                <div class="stat stat-pdf">
                     <span class="stat-value" id="stat-pages">0</span>
                     <span class="stat-label">Pages</span>
                 </div>
-                <div class="stat">
+                <div class="stat stat-pdf">
                     <span class="stat-value" id="stat-tables">0</span>
                     <span class="stat-label">Tables</span>
                 </div>
+                <!-- Shared stats -->
                 <div class="stat">
                     <span class="stat-value" id="stat-images">0</span>
                     <span class="stat-label">Images</span>
@@ -134,6 +166,14 @@
                 <div class="stat">
                     <span class="stat-value" id="stat-time">0s</span>
                     <span class="stat-label">Time</span>
+                </div>
+            </div>
+
+            <!-- Article info (scrape only) -->
+            <div id="article-info" class="article-info hidden">
+                <div class="article-meta">
+                    <span id="article-title" class="article-title"></span>
+                    <span id="article-author" class="article-author"></span>
                 </div>
             </div>
 
@@ -153,7 +193,7 @@
 
             <!-- New conversion -->
             <button id="new-conversion" class="btn-secondary">
-                ← Convert Another PDF
+                ← Convert Another
             </button>
         </section>
 
@@ -167,7 +207,7 @@
     </div>
 
     <footer class="footer">
-        <p>Built with PyMuPDF · pdfplumber · Tesseract OCR · Gemini AI</p>
+        <p>Built with PyMuPDF · pdfplumber · Tesseract OCR · Playwright · Gemini AI</p>
     </footer>
 
     <script src="/static/app.js"></script>

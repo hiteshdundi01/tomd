@@ -1,22 +1,32 @@
-# PDFMD
+# TOMD
 
-**AI-Powered PDF → Markdown Converter**
+**Convert Anything to Markdown — PDFs, Web Articles, Blog Posts & More**
 
-Convert PDF documents to clean, structured Markdown with OCR support, AI-powered image descriptions, and intelligent formatting cleanup.
+AI-powered tool that converts PDF documents and web articles into clean, structured Markdown with OCR support, image downloading, and intelligent formatting cleanup.
 
-![PDFMD Screenshot](https://raw.githubusercontent.com/hiteshdundi01/pdfmd/main/docs/screenshot.png)
+![TOMD Screenshot](https://raw.githubusercontent.com/hiteshdundi01/tomd/main/docs/screenshot.png)
 
 ## ✨ Features
 
+### PDF → Markdown
 - **Digital & Scanned PDFs** — Extracts text from selectable PDFs using PyMuPDF; falls back to Tesseract OCR for scanned documents
 - **Table Extraction** — Detects tables via pdfplumber; renders as Markdown or falls back to HTML for complex layouts
 - **AI Image Descriptions** — Sends extracted images to Gemini for detailed, context-aware descriptions
 - **Math & Code Detection** — Heuristically detects LaTeX formulas and code blocks, wrapping them in proper Markdown syntax
 - **Multi-Column Layouts** — Correctly handles two-column academic papers and reports
 - **Headings & Structure** — Infers heading hierarchy from font sizes and weights
-- **Footnotes & Links** — Preserves hyperlinks and footnotes from the original PDF
-- **Smart Mode** — Optional Gemini-powered post-processing that cleans OCR artifacts, fixes formatting, and restructures headings
-- **Web UI** — Drag-and-drop upload with real-time progress, Markdown preview, and one-click download
+
+### Web Article → Markdown *(NEW)*
+- **Any Website** — Scrapes articles from Substack, Medium, WordPress, and most blog platforms
+- **JavaScript Rendering** — Uses Playwright headless Chromium so JS-heavy pages are fully captured
+- **Smart Extraction** — Readability-based boilerplate removal strips away nav, ads, and sidebars
+- **Substack-Specific Parser** — High-fidelity extraction targeting Substack's DOM structure
+- **Local Image Download** — Downloads article images alongside the `.md` file with content-hash deduplication
+- **YAML Frontmatter** — Adds title, author, date, and source URL metadata
+
+### Shared
+- **Smart Mode** — Optional Gemini-powered post-processing that cleans up formatting and restructures headings
+- **Web UI** — Drag-and-drop PDF upload or paste-a-URL with real-time progress, Markdown preview, and one-click download
 
 ## 🚀 Quick Start
 
@@ -33,24 +43,30 @@ Convert PDF documents to clean, structured Markdown with OCR support, AI-powered
 ### Installation
 
 ```bash
-git clone https://github.com/hiteshdundi01/pdfmd.git
-cd pdfmd
+git clone https://github.com/hiteshdundi01/tomd.git
+cd tomd
 
 # Create virtual environment & install
 uv venv .venv
 uv pip install -e .
+
+# Install Playwright browser (for web scraping)
+python -m playwright install chromium
 
 # Configure your API key
 cp .env.example .env
 # Edit .env and add your GEMINI_API_KEY
 ```
 
-### Run the Web UI
+### Run
 
+**Windows** — Double-click `start.bat`
+
+**Command line:**
 ```bash
-pdfmd
+tomd
 # or
-python -m pdfmd.web.app
+python -m tomd.web.app
 ```
 
 Open **http://127.0.0.1:8000** in your browser.
@@ -60,52 +76,53 @@ Open **http://127.0.0.1:8000** in your browser.
 ### Web UI
 
 1. Open http://127.0.0.1:8000
-2. Drag and drop a PDF (or click to browse)
-3. Toggle **Smart Mode** for AI-powered cleanup
-4. Click **Convert to Markdown**
-5. Preview the result and download the `.md` file
+2. Choose a mode: **📄 PDF** or **🌐 Web Article**
+3. Upload a PDF or paste an article URL
+4. Toggle **Smart Mode** for AI-powered cleanup
+5. Click **Convert / Scrape to Markdown**
+6. Preview the result and download the `.md` file
 
 ### Python API
 
 ```python
-from pdfmd import convert_pdf_to_markdown
+# PDF conversion
+from tomd import convert_pdf_to_markdown
 
-result = convert_pdf_to_markdown(
-    "document.pdf",
-    smart_mode=True,
-)
-
+result = convert_pdf_to_markdown("document.pdf", smart_mode=True)
 print(result.markdown)
-print(f"Pages: {result.page_count}")
-print(f"Tables: {result.tables_found}")
-print(f"Images: {result.images_found}")
+
+# Web article scraping
+from tomd import scrape_to_markdown
+
+result = scrape_to_markdown("https://example.substack.com/p/article-title")
+print(result.markdown)
+print(f"Title: {result.title}")
+print(f"Author: {result.author}")
+print(f"Images: {result.images_downloaded}")
 ```
 
 ## 🏗️ Architecture
 
 ```
-src/pdfmd/
-├── converter.py          # Master orchestrator (8-step pipeline)
+src/tomd/
+├── converter.py          # PDF orchestrator (8-step pipeline)
 ├── text_extractor.py     # PyMuPDF — headings, columns, footnotes, links
 ├── ocr_extractor.py      # Tesseract OCR — scanned PDF support
 ├── table_extractor.py    # pdfplumber — Markdown/HTML tables
 ├── image_handler.py      # Image extraction + Gemini Vision descriptions
 ├── math_code_detector.py # LaTeX & code block detection
 ├── gemini_client.py      # Gemini API wrapper (Vision + cleanup)
+├── scraper/
+│   ├── converter.py      # Scraper orchestrator (7-step pipeline)
+│   ├── fetcher.py        # Playwright headless page fetcher
+│   ├── extractor.py      # Readability extraction + HTML→Markdown
+│   ├── substack.py       # Substack-specific parser
+│   ├── image_downloader.py # Image download + URL rewriting
+│   └── models.py         # Data classes
 └── web/
-    ├── app.py            # FastAPI backend
+    ├── app.py            # FastAPI backend (PDF + scrape APIs)
     └── static/           # Frontend (HTML/CSS/JS)
 ```
-
-### Conversion Pipeline
-
-1. **Detect PDF type** — digital vs. scanned
-2. **Extract text** — PyMuPDF or Tesseract OCR
-3. **Extract tables** — pdfplumber → Markdown/HTML
-4. **Extract & describe images** — PyMuPDF + Gemini Vision
-5. **Detect math/code** — Heuristic pattern matching
-6. **Smart Mode** *(optional)* — Gemini cleanup pass
-7. **Final cleanup** — Normalize whitespace and formatting
 
 ## ⚙️ Configuration
 
@@ -122,6 +139,8 @@ Create a `.env` file in the project root (see `.env.example`).
 | Text Extraction | [PyMuPDF](https://pymupdf.readthedocs.io/) |
 | Table Extraction | [pdfplumber](https://github.com/jsvine/pdfplumber) |
 | OCR | [Tesseract](https://github.com/tesseract-ocr/tesseract) via pytesseract |
+| Web Scraping | [Playwright](https://playwright.dev/python/) + [readability-lxml](https://github.com/mozilla/readability) |
+| HTML Parsing | [BeautifulSoup4](https://www.crummy.com/software/BeautifulSoup/) |
 | AI / Vision | [Google Gemini](https://ai.google.dev/) via google-genai |
 | Web Framework | [FastAPI](https://fastapi.tiangolo.com/) |
 | Frontend | Vanilla HTML/CSS/JS with glassmorphism design |

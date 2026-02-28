@@ -1,11 +1,11 @@
 [project]
-name = "pdfmd"
-version = "0.1.0"
-description = "A robust PDF to Markdown converter with OCR and Gemini LLM integration"
+name = "tomd"
+version = "0.2.0"
+description = "Convert anything to Markdown — PDFs, web articles, blog posts, and more"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.11"
-keywords = ["pdf", "markdown", "converter", "ocr", "gemini", "ai"]
+keywords = ["pdf", "markdown", "converter", "ocr", "gemini", "ai", "scraper", "web", "article"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -28,15 +28,21 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "python-multipart>=0.0.18",
     "python-dotenv>=1.0.0",
+    # Web scraper dependencies
+    "playwright>=1.49.0",
+    "readability-lxml>=0.8.1",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=5.0.0",
+    "httpx>=0.28.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/hiteshdundi01/pdfmd"
-Repository = "https://github.com/hiteshdundi01/pdfmd"
-Issues = "https://github.com/hiteshdundi01/pdfmd/issues"
+Homepage = "https://github.com/hiteshdundi01/tomd"
+Repository = "https://github.com/hiteshdundi01/tomd"
+Issues = "https://github.com/hiteshdundi01/tomd/issues"
 
 [project.scripts]
-pdfmd = "pdfmd.web.app:main"
+tomd = "tomd.web.app:main"
 
 [build-system]
 requires = ["setuptools>=75.0", "wheel"]
@@ -44,3 +50,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
