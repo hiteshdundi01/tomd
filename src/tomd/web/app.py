@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, UploadFile, HTTPException
+from fastapi import BackgroundTasks, FastAPI, File, Form, UploadFile, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -167,6 +167,31 @@ def _run_scrape(job_id: str) -> None:
         md_path = UPLOAD_DIR / f"{job_id}.md"
         md_path.write_text(result.markdown, encoding="utf-8")
 
+        # Track the image output directory for serving
+        if result.output_dir:
+            job["output_dir"] = result.output_dir
+
+
+# ---------------------------------------------------------------------------
+# Routes — Image serving for scrape jobs
+# ---------------------------------------------------------------------------
+
+@app.get("/images/{filename}")
+async def serve_image(filename: str):
+    """Serve downloaded images from scrape jobs."""
+    # Search all active scrape jobs for the requested image
+    for job in _jobs.values():
+        if job.get("type") != "scrape":
+            continue
+        output_dir = job.get("output_dir")
+        if not output_dir:
+            continue
+        img_path = Path(output_dir) / "images" / filename
+        if img_path.exists() and img_path.is_file():
+            return FileResponse(str(img_path))
+
+    raise HTTPException(status_code=404, detail="Image not found")
+
 
 # ---------------------------------------------------------------------------
 # Routes — Unified Status / Download / Preview
@@ -221,9 +246,43 @@ async def status(job_id: str):
     return JSONResponse(response)
 
 
+def _cleanup_job(job_id: str) -> None:
+    """Delete all temp files for a job after download."""
+    job = _jobs.pop(job_id, None)
+    if not job:
+        return
+
+    # Remove uploaded PDF
+    pdf_path = job.get("pdf_path")
+    if pdf_path:
+        try:
+            Path(pdf_path).unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    # Remove generated markdown
+    for ext in (".md", ".zip"):
+        try:
+            (UPLOAD_DIR / f"{job_id}{ext}").unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    # Remove scrape image directory
+    output_dir = job.get("output_dir")
+    if output_dir and Path(output_dir).exists():
+        try:
+            shutil.rmtree(output_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    logger.info("Cleaned up job %s", job_id)
+
+
 @app.get("/api/download/{job_id}")
-async def download(job_id: str):
-    """Download the generated markdown file."""
+async def download(job_id: str, background_tasks: BackgroundTasks):
+    """Download the generated markdown file (or zip with images for scrape jobs)."""
+    import zipfile
+
     job = _jobs.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -236,21 +295,47 @@ async def download(job_id: str):
     if not md_path.exists():
         raise HTTPException(status_code=404, detail="Output file not found")
 
+    # Schedule cleanup after the response is sent
+    background_tasks.add_task(_cleanup_job, job_id)
+
     # Determine filename
     job_type = job.get("type", "pdf")
     if job_type == "pdf":
         original_name = Path(job["pdf_path"]).stem + ".md"
-    else:
-        # Use article title or URL slug
-        title = getattr(result, "title", "") or "article"
-        # Sanitize for filename
-        safe_name = "".join(c if c.isalnum() or c in " -_" else "" for c in title)
-        safe_name = safe_name.strip()[:80] or "article"
-        original_name = safe_name + ".md"
+        return FileResponse(
+            path=str(md_path),
+            filename=original_name,
+            media_type="text/markdown",
+        )
 
+    # ── Scrape jobs: bundle markdown + images into a zip ──────────
+    title = getattr(result, "title", "") or "article"
+    safe_name = "".join(c if c.isalnum() or c in " -_" else "" for c in title)
+    safe_name = safe_name.strip()[:80] or "article"
+
+    output_dir = job.get("output_dir")
+    images_dir = Path(output_dir) / "images" if output_dir else None
+    has_images = images_dir and images_dir.exists() and any(images_dir.iterdir())
+
+    if has_images:
+        # Create a zip with the markdown + images/ folder
+        zip_path = UPLOAD_DIR / f"{job_id}.zip"
+        with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(md_path, f"{safe_name}.md")
+            for img_file in images_dir.iterdir():
+                if img_file.is_file():
+                    zf.write(img_file, f"images/{img_file.name}")
+
+        return FileResponse(
+            path=str(zip_path),
+            filename=f"{safe_name}.zip",
+            media_type="application/zip",
+        )
+
+    # No images — just return the markdown file
     return FileResponse(
         path=str(md_path),
-        filename=original_name,
+        filename=f"{safe_name}.md",
         media_type="text/markdown",
     )
 

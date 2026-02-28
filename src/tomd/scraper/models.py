@@ -46,5 +46,6 @@ class ScrapeResult:
     date: str = ""
     source_url: str = ""
     images_downloaded: int = 0
+    output_dir: str = ""  # temp directory containing downloaded images
     elapsed_seconds: float = 0.0
     error: str = ""

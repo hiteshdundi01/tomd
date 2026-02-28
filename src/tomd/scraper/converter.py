@@ -135,7 +135,8 @@ def scrape_to_markdown(
                 markdown, fetched.url, output_dir
             )
             result.images_downloaded = images_count
-            logger.info("Downloaded %d images", images_count)
+            result.output_dir = output_dir
+            logger.info("Downloaded %d images to %s", images_count, output_dir)
 
         # ── Step 7: Smart Mode (Gemini cleanup) ─────────────────────
         if smart_mode:
