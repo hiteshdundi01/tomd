@@ -119,6 +119,7 @@ def extract_images(pdf_path: str) -> list[ExtractedImage]:
 def describe_images_with_gemini(
     images: list[ExtractedImage],
     surrounding_text: str = "",
+    use_batch: bool = False,
 ) -> list[ExtractedImage]:
     """Add Gemini-generated descriptions to extracted images.
 
@@ -128,12 +129,45 @@ def describe_images_with_gemini(
         Images to describe.
     surrounding_text : str
         Context from surrounding document text.
+    use_batch : bool
+        If True and there are ≥2 images, use the Batch API (50% cost).
 
     Returns
     -------
     list[ExtractedImage]
         Same images with ``description`` field populated.
     """
+    if not images:
+        return images
+
+    context_snippet = surrounding_text[:500] if surrounding_text else ""
+
+    # ── Batch path ──────────────────────────────────────────────────
+    if use_batch and len(images) >= 2:
+        try:
+            from tomd.gemini_client import batch_describe_images
+
+            items = [
+                (img.image_bytes, img.mime_type, context_snippet)
+                for img in images
+            ]
+            logger.info(
+                "Batch-describing %d images via Batch API", len(items),
+            )
+            descriptions = batch_describe_images(items)
+
+            for img, desc in zip(images, descriptions):
+                img.description = desc
+
+            return images
+        except Exception as exc:
+            logger.warning(
+                "Batch image description failed, falling back to sequential: %s",
+                exc,
+            )
+            # Fall through to the sequential path below
+
+    # ── Sequential path (original) ──────────────────────────────────
     from tomd.gemini_client import describe_image
 
     for img in images:
@@ -145,7 +179,7 @@ def describe_images_with_gemini(
             img.description = describe_image(
                 img.image_bytes,
                 mime_type=img.mime_type,
-                extra_context=surrounding_text[:500] if surrounding_text else "",
+                extra_context=context_snippet,
             )
         except Exception as exc:
             logger.warning(

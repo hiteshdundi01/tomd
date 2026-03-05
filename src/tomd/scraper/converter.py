@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 def scrape_to_markdown(
     url: str,
     smart_mode: bool = False,
+    use_batch: bool = False,
     download_images_flag: bool = True,
     progress_callback: Optional[Callable[[ScrapeProgress], None]] = None,
 ) -> ScrapeResult:
@@ -36,6 +37,8 @@ def scrape_to_markdown(
         The article URL to scrape.
     smart_mode : bool
         If True, run the output through Gemini for intelligent cleanup.
+    use_batch : bool
+        If True, use the Gemini Batch API (50% cost, async processing).
     download_images_flag : bool
         If True, download images locally and rewrite URLs.
     progress_callback : callable, optional
@@ -142,9 +145,14 @@ def scrape_to_markdown(
         if smart_mode:
             _update("Running AI cleanup (Smart Mode)...", 85)
             try:
-                from tomd.gemini_client import cleanup_markdown
+                if use_batch:
+                    from tomd.gemini_client import batch_cleanup_markdown
+                    cleaned = batch_cleanup_markdown([markdown])
+                    markdown = cleaned[0] if cleaned else markdown
+                else:
+                    from tomd.gemini_client import cleanup_markdown
+                    markdown = cleanup_markdown(markdown)
 
-                markdown = cleanup_markdown(markdown)
                 _update("Smart Mode cleanup complete", 95)
             except Exception as exc:
                 logger.warning("Smart Mode failed (non-fatal): %s", exc)

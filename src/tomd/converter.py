@@ -36,6 +36,7 @@ class ConversionResult:
 def convert_pdf_to_markdown(
     pdf_path: str,
     smart_mode: bool = False,
+    use_batch: bool = False,
     progress_callback: Optional[Callable[[ConversionProgress], None]] = None,
 ) -> ConversionResult:
     """Convert a PDF file to Markdown.
@@ -46,6 +47,8 @@ def convert_pdf_to_markdown(
         Path to the input PDF file.
     smart_mode : bool
         If True, run the output through Gemini for intelligent cleanup.
+    use_batch : bool
+        If True, use the Gemini Batch API (50% cost, async processing).
     progress_callback : callable, optional
         Called with ``ConversionProgress`` updates during conversion.
 
@@ -130,11 +133,16 @@ def convert_pdf_to_markdown(
         result.images_found = len(images)
 
         if images:
+            mode_label = "Batch API" if use_batch else "AI"
             logger.info("Found %d images — sending to Gemini for description", len(images))
-            _update(f"Describing {len(images)} images with AI", 65)
+            _update(f"Describing {len(images)} images with {mode_label}", 65)
 
             try:
-                images = describe_images_with_gemini(images, surrounding_text=raw_text[:1000])
+                images = describe_images_with_gemini(
+                    images,
+                    surrounding_text=raw_text[:1000],
+                    use_batch=use_batch,
+                )
                 image_md = images_to_markdown(images)
                 raw_text = _merge_images(raw_text, image_md, result.page_count)
             except Exception as exc:
@@ -161,8 +169,31 @@ def convert_pdf_to_markdown(
         if smart_mode:
             _update("Running AI-powered cleanup (Smart Mode)", 88)
             try:
-                from tomd.gemini_client import cleanup_markdown
-                raw_text = cleanup_markdown(raw_text)
+                if use_batch:
+                    from tomd.gemini_client import batch_cleanup_markdown
+
+                    # Chunk the document the same way cleanup_markdown does
+                    max_chunk = 80_000
+                    if len(raw_text) <= max_chunk:
+                        chunks = [raw_text]
+                    else:
+                        chunks = []
+                        current = ""
+                        for paragraph in raw_text.split("\n\n"):
+                            if len(current) + len(paragraph) + 2 > max_chunk:
+                                chunks.append(current)
+                                current = paragraph
+                            else:
+                                current = current + "\n\n" + paragraph if current else paragraph
+                        if current:
+                            chunks.append(current)
+
+                    cleaned = batch_cleanup_markdown(chunks)
+                    raw_text = "\n\n".join(cleaned)
+                else:
+                    from tomd.gemini_client import cleanup_markdown
+                    raw_text = cleanup_markdown(raw_text)
+
                 _update("Smart Mode cleanup complete", 95)
             except Exception as exc:
                 logger.warning("Smart Mode cleanup failed: %s — returning raw output", exc)

@@ -59,6 +59,7 @@ async def index():
 async def convert(
     file: UploadFile = File(...),
     smart_mode: bool = Form(False),
+    use_batch: bool = Form(False),
 ):
     """Upload a PDF and start conversion."""
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -79,6 +80,7 @@ async def convert(
         "result": None,
         "pdf_path": str(pdf_path),
         "smart_mode": smart_mode,
+        "use_batch": use_batch,
     }
 
     # Run conversion in background
@@ -101,6 +103,7 @@ def _run_conversion(job_id: str) -> None:
     result = convert_pdf_to_markdown(
         job["pdf_path"],
         smart_mode=job["smart_mode"],
+        use_batch=job.get("use_batch", False),
         progress_callback=on_progress,
     )
     job["result"] = result
@@ -118,6 +121,7 @@ def _run_conversion(job_id: str) -> None:
 class ScrapeRequest(BaseModel):
     url: str
     smart_mode: bool = False
+    use_batch: bool = False
 
 
 @app.post("/api/scrape")
@@ -136,6 +140,7 @@ async def scrape(req: ScrapeRequest):
         "result": None,
         "url": req.url.strip(),
         "smart_mode": req.smart_mode,
+        "use_batch": req.use_batch,
     }
 
     asyncio.get_event_loop().run_in_executor(
@@ -158,6 +163,7 @@ def _run_scrape(job_id: str) -> None:
     result = scrape_to_markdown(
         job["url"],
         smart_mode=job["smart_mode"],
+        use_batch=job.get("use_batch", False),
         progress_callback=on_progress,
     )
     job["result"] = result
