@@ -28,6 +28,9 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "python-multipart>=0.0.18",
     "python-dotenv>=1.0.0",
+    # Word document conversion
+    "mammoth>=1.8.0",
+    "markdownify>=0.14.1",
     # Web scraper dependencies
     "playwright>=1.49.0",
     "readability-lxml>=0.8.1",

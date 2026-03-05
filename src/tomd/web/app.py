@@ -61,32 +61,45 @@ async def convert(
     smart_mode: bool = Form(False),
     use_batch: bool = Form(False),
 ):
-    """Upload a PDF and start conversion."""
-    if not file.filename or not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Please upload a PDF file.")
+    """Upload a PDF or Word document and start conversion."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided.")
+
+    ext = Path(file.filename).suffix.lower()
+    supported_exts = {".pdf", ".docx", ".doc", ".rtf"}
+
+    if ext not in supported_exts:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file type '{ext}'. Please upload a PDF, DOCX, DOC, or RTF file.",
+        )
 
     job_id = str(uuid.uuid4())
 
     # Save uploaded file
-    pdf_path = UPLOAD_DIR / f"{job_id}.pdf"
-    with open(pdf_path, "wb") as f:
+    upload_path = UPLOAD_DIR / f"{job_id}{ext}"
+    with open(upload_path, "wb") as f:
         content = await file.read()
         f.write(content)
 
+    # Determine job type based on file extension
+    is_word = ext in {".docx", ".doc", ".rtf"}
+    job_type = "docx" if is_word else "pdf"
+
     # Initialize job
     _jobs[job_id] = {
-        "type": "pdf",
+        "type": job_type,
         "progress": ConversionProgress(),
         "result": None,
-        "pdf_path": str(pdf_path),
+        "file_path": str(upload_path),
+        "pdf_path": str(upload_path) if not is_word else None,
         "smart_mode": smart_mode,
         "use_batch": use_batch,
     }
 
     # Run conversion in background
-    asyncio.get_event_loop().run_in_executor(
-        None, _run_conversion, job_id
-    )
+    runner = _run_docx_conversion if is_word else _run_conversion
+    asyncio.get_event_loop().run_in_executor(None, runner, job_id)
 
     return JSONResponse({"job_id": job_id})
 
@@ -101,7 +114,30 @@ def _run_conversion(job_id: str) -> None:
         job["progress"] = p
 
     result = convert_pdf_to_markdown(
-        job["pdf_path"],
+        job["file_path"],
+        smart_mode=job["smart_mode"],
+        use_batch=job.get("use_batch", False),
+        progress_callback=on_progress,
+    )
+    job["result"] = result
+
+    # Save result to file
+    if result.markdown:
+        md_path = UPLOAD_DIR / f"{job_id}.md"
+        md_path.write_text(result.markdown, encoding="utf-8")
+
+
+def _run_docx_conversion(job_id: str) -> None:
+    """Run the Word document conversion (called in a thread pool)."""
+    from tomd.docx_converter import convert_docx_to_markdown
+
+    job = _jobs[job_id]
+
+    def on_progress(p: ConversionProgress):
+        job["progress"] = p
+
+    result = convert_docx_to_markdown(
+        job["file_path"],
         smart_mode=job["smart_mode"],
         use_batch=job.get("use_batch", False),
         progress_callback=on_progress,
@@ -222,7 +258,7 @@ async def status(job_id: str):
         "error": progress.error,
     }
 
-    if job_type == "pdf":
+    if job_type in ("pdf", "docx"):
         response["current_page"] = getattr(progress, "current_page", 0)
         response["total_pages"] = getattr(progress, "total_pages", 0)
 
@@ -231,7 +267,7 @@ async def status(job_id: str):
                 "page_count": result.page_count,
                 "images_found": result.images_found,
                 "tables_found": result.tables_found,
-                "used_ocr": result.used_ocr,
+                "used_ocr": getattr(result, "used_ocr", False),
                 "elapsed_seconds": result.elapsed_seconds,
                 "has_error": bool(result.error),
                 "conversion_error": result.error,
@@ -258,11 +294,11 @@ def _cleanup_job(job_id: str) -> None:
     if not job:
         return
 
-    # Remove uploaded PDF
-    pdf_path = job.get("pdf_path")
-    if pdf_path:
+    # Remove uploaded file (PDF or Word doc)
+    file_path = job.get("file_path") or job.get("pdf_path")
+    if file_path:
         try:
-            Path(pdf_path).unlink(missing_ok=True)
+            Path(file_path).unlink(missing_ok=True)
         except Exception:
             pass
 
@@ -306,8 +342,9 @@ async def download(job_id: str, background_tasks: BackgroundTasks):
 
     # Determine filename
     job_type = job.get("type", "pdf")
-    if job_type == "pdf":
-        original_name = Path(job["pdf_path"]).stem + ".md"
+    if job_type in ("pdf", "docx"):
+        file_path = job.get("file_path") or job.get("pdf_path", "document")
+        original_name = Path(file_path).stem + ".md"
         return FileResponse(
             path=str(md_path),
             filename=original_name,

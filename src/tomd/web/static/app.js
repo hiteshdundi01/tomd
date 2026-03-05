@@ -122,8 +122,12 @@ dropZone.addEventListener('drop', (e) => {
     e.preventDefault();
     dropZone.classList.remove('drag-over');
     const files = e.dataTransfer.files;
-    if (files.length > 0 && files[0].type === 'application/pdf') {
-        selectFile(files[0]);
+    if (files.length > 0) {
+        const name = files[0].name.toLowerCase();
+        const validExts = ['.pdf', '.docx', '.doc', '.rtf'];
+        if (validExts.some(ext => name.endsWith(ext))) {
+            selectFile(files[0]);
+        }
     }
 });
 
@@ -315,11 +319,11 @@ async function showResult(data) {
 
     // Toggle PDF-specific stats
     document.querySelectorAll('.stat-pdf').forEach(el => {
-        el.style.display = jobType === 'pdf' ? '' : 'none';
+        el.style.display = (jobType === 'pdf' || jobType === 'docx') ? '' : 'none';
     });
 
     // Stats
-    if (jobType === 'pdf') {
+    if (jobType === 'pdf' || jobType === 'docx') {
         statPages.textContent = data.page_count || 0;
         statTables.textContent = data.tables_found || 0;
         statImages.textContent = data.images_found || 0;
