@@ -62,6 +62,8 @@ cp .env.example .env
 
 **Windows** — Double-click `start.bat`
 
+**macOS / Linux** — Run `./start.sh`
+
 **Command line:**
 ```bash
 tomd
